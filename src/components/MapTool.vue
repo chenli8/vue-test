@@ -1,24 +1,51 @@
 <template>
-<div>
- <div style="position:absolute; right: 0;top: 0; width: 100px;width: 225px;background-color: #00b5ff;z-index: 100">
-    <input type="text" id="search">
-    <button id="btn-search">搜索</button>
+  <div>
+    <div id="map1" style="width:50%;height:800px;float:left"> </div>
+    <div id="map2" style="width:50%;height:800px;float:left"> 
+    </div>
+     <button style="position:absolute;right:20px;top:30px;z-index:999999" @click="deleteCirle">删除</button>
   </div>
-  <div id="allmap"></div>
-  <div style="float: left; width: 200px;">
-    <button id="toolBtn" @click="openPolygon" ref='button'>开启绘制</button>
-    <div id="point_text"></div>
-  </div>
-</div>
 </template>
 
 <script>
+import inMap from "inmap";
+import data from "./demo.json";
+
 export default {
-  name: "MapTool",
+  name: "Map",
+  data() {
+    return {
+      choose: null,
+      arr: [],
+      map1: null,
+      map2: null,
+      list2:[]
+    };
+  },
   methods: {
-    initHandleFun() {
-      var inmap = new inMap.Map({
-        id: "allmap",
+    getdata() {
+      data.features.forEach((item, index) => {
+        this.arr.push({
+          name: item.properties.name,
+          geo: item.geometry.coordinates[0][0],
+          count: index + 1
+        });
+      });
+    },
+    initMap() {
+      this.map1 = new inMap.Map({
+        id: "map1",
+        skin: "Blueness",
+        center: [118.185884, 39.652141],
+        zoom: {
+          value: 9,
+          show: true,
+          max: 22
+        }
+      });
+      this.map2 = new inMap.Map({
+        id: "map2",
+        skin: "Blueness",
         center: [118.185884, 39.652141],
         zoom: {
           value: 9,
@@ -27,281 +54,173 @@ export default {
           min: 5
         }
       });
-      var overlay2 = new inMap.BoundaryOverlay({
+    },
+    initMap1(arr) {
+      // console.log(arr[0].geo.length)
+      //处理数据1
+      var option = {
+        tooltip: {
+          show: true,
+          formatter: function(params) {
+            return (
+              '<div style="white-space: nowrap;z-index: 9999999;transition: left 0.4s cubic-bezier(0.23, 1, 0.32, 1), top 0.4s cubic-bezier(0.23, 1, 0.32, 1);background-color: rgb(255, 255, 255);font-style: normal;font-variant: normal;font-weight: normal;font-stretch: normal;font-size: 14px;font-family: &quot;Microsoft YaHei&quot;;line-height: 21px;padding: 5px 15px;left: 350.544px;top: -7px;border-radius: 2px;">' +
+              ' <div class="echart-tool-tips">' +
+              ' <div class="time-line clearfix">' +
+              ' <span class="time-label">时间 : </span><span class="time-value">14:00</span>' +
+              " </div>" +
+              ' <div class="time-line clearfix">' +
+              ' <span class="time-label">地区 : </span><span class="time-value">' +
+              params.name +
+              "</span>" +
+              " </div>" +
+              ' <div class="time-line clearfix">' +
+              ' <span class="time-label">温度 : </span><span class="time-value">' +
+              params.count +
+              "℃</span>" +
+              " </div></div></div>"
+            );
+          },
+          offsets: {
+            top: 15,
+            left: 15
+          },
+          customClass: "customize"
+        },
+        legend: {
+          show: true,
+          title: "板块去重设备数 "
+        },
         style: {
           normal: {
             borderWidth: 1.5,
-            borderColor: "green",
-            backgroundColor: "red",
             label: {
               show: true, // 是否显示
-              font: "10px bold ",
-              color: "rgba(18,65,114,1)"
+              font: "13px bold ",
+              color: "#fff"
             }
-          }
+          },
+          mouseOver: {
+            shadowColor: "rgba(0, 0, 0, 1)",
+            shadowBlur: 10,
+            borderWidth: 1.5,
+            label: {
+              color: "rgba(0, 0, 0, 1)"
+            }
+          },
+          selected: {
+            backgroundColor: "rgba(184,0,0,1)",
+            borderColor: "rgba(255,255,255,1)",
+            label: {
+              color: "rgba(255,255,255,1)"
+            }
+          },
+          colors: [
+            "rgba(156,200,249,0.4)",
+            "rgba(93,158,247,0.4)",
+            "rgba(134,207,55,0.4)",
+            "rgba(252,198,10,0.4)",
+            "rgba(255,144,0,0.4)"
+          ]
         },
-        data: data
+        multiSelect: false
+      };
+      var overlay = new inMap.BoundaryOverlay(option);
+      overlay.enableEditing = true;
+      this.map1.add(overlay);
+      overlay.setPoints(arr);
+      //开启联动监听事件
+      let map1 = this.map1.getMap();
+      let map2 = this.map2.getMap();
+      map1.addEventListener("dragend", function() {
+        var centerPoint = map1.getCenter();
+        map2.centerAndZoom(
+          new BMap.Point(centerPoint.lng, centerPoint.lat),
+          map1.getZoom()
+        );
       });
-      inmap.add(overlay2);
-
-      var bmap = inmap.getMap();
-      BMapLib.DrawingManager.prototype._updatePolygonOptions = function(opt) {
-        this.polygonOptions = opt;
-      };
-      var overlays_color = [
-        "red",
-        "yellow",
-        "blue",
-        "#5f93e1",
-        "#72cb68",
-        "#f7a33d",
-        "#e77345",
-        "#9280eb",
-        "#f0e53d",
-        "#d6aa27",
-        "#aa71bf",
-        "#dfa2d8"
-      ];
-
-      var point_text_tep =
-        "<div id='point_text{{index}}'><span class = 'point_text_span' data-index ='{{index}}' style='background:{{span_color}}'>&times;</span><p class = 'point_text_text' id = 'text{{index}}' data-color = '{{span_color}}'>{{path_value}}</p></div>";
-
-      function oo(obj) {
-        return document.getElementById(obj);
-      }
-      var point = new BMap.Point(105.403119, 38.028658);
-      bmap.centerAndZoom(point, 5);
-
-      var size = new BMap.Size(10, 20);
-      bmap.addControl(
-        new BMap.CityListControl({
-          anchor: BMAP_ANCHOR_TOP_LEFT,
-          offset: size
-        })
-      );
-
-      var overlays = [];
-      var overlaycomplete = function(e) {
-        oo("toolBtn").innerHTML = "开启绘制";
-        var polygon = e.overlay;
-        overlays.push(polygon);
-        polygon.enableEditing();
-        pointsToStr(polygon, true);
-        polygon.addEventListener("lineupdate", function(e) {
-          pointsToStr(this, false);
-        });
-      };
-
-      function pointsToStr(polygon, kase) {
-        var points = polygon.getPath(),
-          index = Array.prototype.indexOf.call(overlays, polygon),
-          collen = overlays_color.length,
-          // color = index>= collen ? overlays_color[index%collen] : overlays_color[index];
-          color = polygon.getFillColor();
-        pointsToStrAndColor(points, index, color, kase);
-      }
-
-      function pointsToStrAndColor(points, index, color, kase) {
-        var p = [];
-        for (var i = 0, len = points.length; i < len; i++) {
-          p.push(points[i].lng + "," + points[i].lat);
-        }
-        var html_str = point_text_tep
-          .replace(/{{index}}/g, index)
-          .replace(/{{span_color}}/g, color)
-          .replace(/{{path_value}}/g, p.join(";"));
-        if (kase) {
-          oo("point_text").innerHTML += html_str;
-        } else {
-          oo("point_text" + index).innerHTML = html_str;
-        }
-      }
-      var styleOptions = {
-        strokeColor: overlays_color[0], //边线颜色。
-        fillColor: overlays_color[0], //填充颜色。当参数为空时，圆形将没有填充效果。
-        strokeWeight: 3, //边线的宽度，以像素为单位。
-        strokeOpacity: 0.8, //边线透明度，取值范围0 - 1。
-        fillOpacity: 0.6, //填充的透明度，取值范围0 - 1。
-        strokeStyle: "solid" //边线的样式，solid或dashed。
-      };
-      //实例化鼠标绘制工具
-      var drawingManager = new BMapLib.DrawingManager(bmap, {
-        isOpen: false, //是否开启绘制模式
-        enableDrawingTool: false, //是否显示工具栏
-        drawingToolOptions: {
-          anchor: BMAP_ANCHOR_TOP_RIGHT, //位置
-          offset: new BMap.Size(5, 5) //偏离值
-        },
-        polygonOptions: styleOptions //多边形的样式
-      });
-
-      //添加鼠标绘制工具监听事件，用于获取绘制结果
-      drawingManager.addEventListener("overlaycomplete", overlaycomplete);
-
-      function clearAll() {
-        for (var i = 0; i < overlays.length; i++) {
-          bmap.removeOverlay(overlays[i]);
-        }
-        overlays.length = 0;
-      }
-
-      function updateColor() {
-        var collen = overlays_color.length,
-          index = overlays.length,
-          color =
-            index >= collen
-              ? overlays_color[index % collen]
-              : overlays_color[index];
-        opt = inherit(styleOptions, {
-          strokeColor: color,
-          fillColor: color
-        });
-        drawingManager._updatePolygonOptions(opt);
-      }
-
-      function inherit(target, source) {
-        for (i in source) {
-          target[i] = source[i];
-        }
-        return target;
-      }
-
-      oo("point_text").addEventListener(
-        "click",
-        function(e) {
-          if (e.target.className == "point_text_span") {
-            var _this = e.target;
-            var index = _this.getAttribute("data-index");
-            bmap.removeOverlay(overlays[index]);
-            overlays[index] = null;
-            _this.parentNode.parentNode.removeChild(_this.parentNode);
-          }
-        },
-        false
-      );
-      document.getElementById("btn-search").onclick = function() {
-        var text = document.getElementById("search").value;
-        bmap.centerAndZoom(text, 10);
-      };
-      window.addEventListener("beforeunload", function(event) {
-        var overlaysArr = [];
-        for (var i = 0, len = overlays.length; i < len; i++) {
-          var overlaysObj = overlays[i];
-          if (overlaysObj) {
-            var obj = {
-              drawPoint: overlaysObj.getPath(),
-              color: overlaysObj.getFillColor()
-            };
-            overlaysArr.push(obj);
-          }
-        }
-        window.localStorage.setItem("overlaysArr", JSON.stringify(overlaysArr));
-      });
-
-      window.addEventListener("load", function() {
-        var _data = window.localStorage.getItem("overlaysArr");
-        if (_data) {
-          var data = JSON.parse(_data);
-          for (var i = 0, len = data.length; i < len; i++) {
-            var _obj = data[i];
-
-            pointsToStrAndColor(_obj.drawPoint, i, _obj.color, true);
-
-            var option = inherit(styleOptions, {
-              strokeColor: _obj.color,
-              fillColor: _obj.color
-            });
-
-            var overlay = new BMap.Polygon(_obj.drawPoint, option);
-            drawingManager._map.addOverlay(overlay);
-            overlays.push(overlay);
-            overlay.setPath(_obj.drawPoint);
-            overlay.enableEditing();
-            overlay.addEventListener("lineupdate", function(e) {
-              pointsToStr(this, false);
-            });
-          }
-        }
+      //监听滚轮放大缩小
+      map1.addEventListener("zoomend", function(type) {
+        map2.setZoom(map1.getZoom());
       });
     },
-    openPolygon() {
-      var val = this.$refs.button.innerHTML;
-      if (val == "开启绘制") {
-        drawingManager.open();
-        updateColor();
-        drawingManager.setDrawingMode(BMAP_DRAWING_POLYGON);
-        this.$refs.button.innerHTML = "绘制进行中";
-      }
+    initMap2() {
+      let arr = data.features[0].geometry.coordinates[0][0].map(item => {
+        return {
+          lng: item[0],
+          lat: item[1]
+        };
+      });
+      let THIS = this;
+      var overlay = new inMap.DotOverlay({
+        style: {
+          normal: {
+            backgroundColor: "red", // 填充颜色
+            globalCompositeOperation: "lighter", // 颜色叠加方式
+            size: 3 // 半径
+          },
+          mouseOver: {
+            backgroundColor: "rgba(200, 200, 200, 1)",
+            borderColor: "rgba(255,255,255,1)",
+            borderWidth: 3
+          },
+          selected: {
+            borderWidth: 1,
+            backgroundColor: "rgba(184,0,0,1)",
+            borderColor: "rgba(255,255,255,1)"
+          }
+        },
+        data: arr,
+        event: {
+          multiSelect: false,
+          onMouseClick: function(item) {
+            THIS.list2.push([Number(item[0].lng),item[0].lat])
+          }
+        }
+      });
+      this.map2.add(overlay);
+      //开启联动监听事件
+      let map2 = this.map2.getMap();
+      let map1 = this.map1.getMap();
+      map2.addEventListener("dragend", function() {
+        var centerPoint = map2.getCenter();
+        map1.centerAndZoom(
+          new BMap.Point(centerPoint.lng, centerPoint.lat),
+          map2.getZoom()
+        );
+      });
+      //监听滚轮放大缩小
+      map2.addEventListener("zoomend", function(type) {
+        map1.setZoom(map2.getZoom());
+      });
+    },
+    deleteCirle() {
+      console.log(this.list2)
+      // let THIS = this;
+      // let list = [];
+      // for (let i = 0; i < this.arr[0].geo.length; i++) {
+      //   if (
+      //     Number(this.arr[0].geo[i][0]) != Number(THIS.choose[0].lng) &&
+      //     Number(THIS.choose[0].lat) != Number(this.arr[0].geo[i][1])
+      //   ) {
+      //     list.push(this.arr[0].geo[i]);
+      //   }
+      // }
+      // this.arr[0].geo = list;
+      this.arr[0].geo=this.list2;
+      
+      this.initMap1(this.arr);
     }
   },
   mounted() {
-    this.initHandleFun();
+    this.getdata();
+    this.initMap()
+    this.initMap1(this.arr);
+    this.initMap2();
+    console.log(this.map2.getMap())
   }
 };
 </script>
 
-<style>
-body,
-html {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  font-family: "微软雅黑";
-}
+<style scoped>
 
-#allmap {
-  width: 80%;
-  height: 1000px;
-  float: left;
-}
-
-#polygon_text {
-  width: 400px;
-}
-
-p {
-  margin-left: 5px;
-  font-size: 14px;
-}
-
-#toolBtn {
-  width: 80px;
-  height: 50px;
-  margin: 10px;
-  border: 1px silver;
-  cursor: pointer;
-}
-
-#point_text {
-  width: 200px;
-  height: 500px;
-  border: 1px solid #888;
-}
-
-#point_text div {
-  width: 100%;
-  height: auto;
-  position: relative;
-}
-
-.point_text_span {
-  display: block;
-  width: 16px;
-  height: 16px;
-  font-size: 16px;
-  line-height: 16px;
-  text-align: center;
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 5px;
-}
-
-.point_text_text {
-  line-height: 16px;
-  font-size: 12px;
-  height: auto;
-  text-indent: 1.5em;
-  word-wrap: break-word;
-}
 </style>
