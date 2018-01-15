@@ -1,79 +1,80 @@
 <template>
-  <section class="container">
-      <codemirror v-model="code" 
-                  :options="cmOption"
-                  @cursorActivity="onCmCursorActivity"
-                  @ready="onCmReady"
-                  @focus="onCmFocus"
-                  @blur="onCmBlur">
+  <div class="editorContain">
+      <codemirror ref="myCm"
+              :value="code" 
+              :options="cmOptions"
+              @ready="onCmReady"
+              @focus="onCmFocus"
+              @input="onCmCodeChange">
       </codemirror>
-  </section>
+  </div>
 </template>
 
 <script>
+import "codemirror/mode/javascript/javascript.js";
+import "codemirror/theme/base16-dark.css";
+
 export default {
+  name: "editor",
   data() {
-    const code = `{}`;
     return {
-      code,
-      cmOption: {
-        tabSize: 4,
-        styleActiveLine: false,
-        lineNumbers: true,
-        styleSelectedText: false,
-        line: true,
-        foldGutter: true,
-        gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
-        highlightSelectionMatches: { showToken: /\w/, annotateScrollbar: true },
+      code: "const a = 10",
+      cmOptions: {
+        tabSize: 4,// Tab缩进，默认4
         mode: {
             name: "javascript",
             json: true
         },
-        // hint.js options
+        theme: "base16-dark", // 主题
+        lineNumbers: true,// 是否显示行号
+        line: true,
+        styleActiveLine: false,
+        styleSelectedText: false,
+        foldGutter: true,
+        gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+        highlightSelectionMatches: { showToken: /\w/, annotateScrollbar: true },
         hintOptions: {
             // 当匹配只有一项的时候是否自动补全
             completeSingle: false
         },
-        //快捷键 可提供三种模式 sublime、emacs、vim
-        keyMap: "sublime",
-        matchBrackets: true,
+        // keyMap: "sublime",
+       matchBrackets: true,
         showCursorWhenSelecting: true,
-        theme: "monokai",
+        // theme: "monokai",
         extraKeys: { Ctrl: "autocomplete" }
       }
     };
   },
   methods: {
-    onCmCursorActivity(codemirror) {
-        this.$emit('send-codemirror-event', this.code)
+    onCmReady(cm) {
+      console.log("the editor is readied!", cm);
     },
-    onCmReady(codemirror) {
-      console.log("onCmReady", codemirror);
+    onCmFocus(cm) {
+      console.log("the editor is focus!", cm);
     },
-    onCmFocus(codemirror) {
-      console.log("onCmFocus", codemirror);
-    },
-    onCmBlur(codemirror) {
-      console.log("onCmBlur", codemirror);
-    },
-    formatting () {
-        console.log(eval("("+this.code+")"))
+    onCmCodeChange(newCode) {
+      console.log("this is new code", newCode);
+      this.code = newCode;
     }
+  },
+  computed: {
+    codemirror() {
+      return this.$refs.myCm.codemirror;
+    }
+  },
+  mounted() {
+    console.log("this is current codemirror object", this.codemirror);
   }
+  //  components: {
+  //     codemirror
+  //   }
 };
 </script>
 
 <style>
-.cm-s-monokai .CodeMirror-gutters {
-    background: #2f3129;
-}
-.CodeMirror, .container {
-    height: 100vh;
-}
-.container {
-    font-size: 18px;
-    font-weight: bold;
-    width: 100%;
-    height: calc(100%);
+.editorContain {
+  width: 800px;
+  height: 800px;
+  border: solid 1px #ccc;
 }
 </style>
